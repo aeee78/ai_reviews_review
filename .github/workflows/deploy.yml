@@ -1,0 +1,70 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+
+            APP_DIR=~/ai_reviews_review
+
+            # Клонируем если первый деплой, иначе pull
+            if [ ! -d "$APP_DIR" ]; then
+              git clone git@github.com:aeee78/ai_reviews_review.git "$APP_DIR"
+            fi
+
+            cd "$APP_DIR"
+            git fetch origin main
+            git reset --hard origin/main
+
+            # Создаем .env из секретов
+            cat > .env << 'ENVEOF'
+            BOT_TOKEN=${{ secrets.BOT_TOKEN }}
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            ENVEOF
+            # Убираем лишние пробелы в начале строк
+            sed -i 's/^[[:space:]]*//' .env
+
+            # Устанавливаем зависимости через uv
+            uv venv "$APP_DIR/.venv" --python 3.12 2>/dev/null || true
+            uv pip install -r requirements.txt --python "$APP_DIR/.venv/bin/python"
+
+            # Создаем systemd сервис если его нет
+            if [ ! -f /etc/systemd/system/ozon-bot.service ]; then
+              sudo tee /etc/systemd/system/ozon-bot.service > /dev/null << SVCEOF
+            [Unit]
+            Description=Ozon AI Reviews Bot
+            After=network.target
+
+            [Service]
+            Type=simple
+            User=$USER
+            WorkingDirectory=$APP_DIR
+            ExecStart=$APP_DIR/.venv/bin/python bot.py
+            Restart=always
+            RestartSec=10
+            EnvironmentFile=$APP_DIR/.env
+
+            [Install]
+            WantedBy=multi-user.target
+            SVCEOF
+              sudo systemctl daemon-reload
+              sudo systemctl enable ozon-bot
+            fi
+
+            # Перезапускаем бота
+            sudo systemctl restart ozon-bot
+            echo "✅ Deployed and restarted successfully"
