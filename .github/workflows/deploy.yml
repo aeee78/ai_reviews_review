@@ -21,9 +21,9 @@ jobs:
 
             APP_DIR=~/ai_reviews_review
 
-            # Клонируем если первый деплой, иначе pull
+            # Клонируем если первый деплой, иначе pull (через HTTPS — не нужен SSH ключ GitHub)
             if [ ! -d "$APP_DIR" ]; then
-              git clone git@github.com:aeee78/ai_reviews_review.git "$APP_DIR"
+              git clone https://github.com/aeee78/ai_reviews_review.git "$APP_DIR"
             fi
 
             cd "$APP_DIR"
