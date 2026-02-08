@@ -89,7 +89,7 @@ def collect_reviews_from_url(driver, target_url, limit, existing_set, label=""):
                 # ВАЖНО: Сохраняем фильтр "reviewsVariantMode=2" (Этот вариант товара)
                 if "reviewsVariantMode" not in next_url:
                     separator = "&" if "?" in next_url else "?"
-                    next_url += f"{separator}reviewsVariantMode=2"
+                    next_url += f"{separator}reviewsVariantMode=1"
                 
                 driver.get(next_url)
                 page_num += 1
@@ -107,7 +107,7 @@ async def parse_ozon_reviews(url, max_reviews=100, max_negative=50):
     print("🛡️ Используем метод поиска по data-review-uuid (без классов)")
 
     options = Options()
-    options.add_argument("--headless=new")
+    # options.add_argument("--headless=new")
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
@@ -126,12 +126,12 @@ async def parse_ozon_reviews(url, max_reviews=100, max_negative=50):
     
     try:
         # ЭТАП 1: Свежие
-        url_fresh = base_url + "?sort=published_at_desc&reviewsVariantMode=2"
+        url_fresh = base_url + "?sort=published_at_desc&reviewsVariantMode=1"
         collect_reviews_from_url(driver, url_fresh, max_reviews, all_reviews, label="Свежие")
 
         # ЭТАП 2: Негатив
         if max_negative > 0:
-            url_bad = base_url + "?sort=score_asc&reviewsVariantMode=2"
+            url_bad = base_url + "?sort=score_asc&reviewsVariantMode=1"
             collect_reviews_from_url(driver, url_bad, max_negative, all_reviews, label="Негатив")
 
     except Exception as e:
